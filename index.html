@@ -537,6 +537,21 @@ let map, dotLayer, searchCircle;
     for (const m of markers) m.setRadius(r);
   });
 
+  // ── Cursor: pointer when near a tree, default otherwise ──────────────────
+  const mapCanvas = map.getContainer();
+  map.on('mousemove', (e) => {
+    const { lat, lng } = e.latlng;
+    // Use a small radius scaled to zoom so it feels snappy at all zoom levels
+    const z = map.getZoom();
+    const radius = Math.max(0.0002, 0.003 / Math.pow(1.8, z - 13));
+    const nearby = findNearby(lat, lng, radius);
+    mapCanvas.style.cursor = nearby.length > 0 ? 'pointer' : '';
+  });
+
+  map.on('mouseout', () => {
+    mapCanvas.style.cursor = '';
+  });
+
   // ── Address search ───────────────────────────────────────────────────────
   let searchMarker = null;
 
