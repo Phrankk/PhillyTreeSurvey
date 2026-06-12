@@ -43,15 +43,23 @@
   #search-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 8px 16px;
     background: #E0F7FA;
     border-bottom: 1px solid #9ed8e0;
     flex-shrink: 0;
     z-index: 1000;
   }
+  #search-label {
+    font-size: 0.75rem;
+    font-family: 'Courier New', monospace;
+    color: #1a6b4a;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
   #address-input {
-    flex: 1;
+    width: 260px;
+    flex: none;
     padding: 6px 10px;
     font-size: 0.8rem;
     font-family: 'Courier New', monospace;
@@ -275,7 +283,8 @@
 </div>
 
 <div id="search-bar">
-  <input id="address-input" type="text" placeholder="Enter a Philadelphia address&hellip;" autocomplete="off" />
+  <span id="search-label">Find address:</span>
+  <input id="address-input" type="text" placeholder="e.g. 1234 Market St" autocomplete="off" />
   <button id="search-btn">Find tree</button>
   <span id="search-status"></span>
 </div>
@@ -476,6 +485,7 @@ let map, dotLayer, searchCircle;
   });
 
   map.on('click', (e) => {
+    map.closePopup();
     const { lat, lng } = e.latlng;
 
     // Search within a generous radius, then pick only the single closest tree
@@ -583,8 +593,9 @@ let map, dotLayer, searchCircle;
       if (searchMarker) map.removeLayer(searchMarker);
       searchMarker = L.circleMarker([lat, lng], {
         radius: 7, color: '#c0392b', fillColor: '#e74c3c',
-        fillOpacity: 0.9, weight: 2
-      }).addTo(map).bindPopup('📍 ' + query).openPopup();
+        fillOpacity: 0.9, weight: 2,
+        interactive: false
+      }).addTo(map);
 
       // Show tree in panel
       const rawName = treeData.ns[treeData.ni[closest]];
