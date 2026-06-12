@@ -520,7 +520,7 @@ let map, dotLayer, searchCircle;
     div.innerHTML = `
       <div class="tree-common"><span class="tree-dot"></span>${common}</div>
       ${scientific ? `<div class="tree-scientific">${scientific}</div>` : ''}
-      ${dbh ? `<div class="tree-dbh">DBH: ${dbh}&Prime;</div>` : ''}
+      ${dbh ? `<div class="tree-dbh">Diameter: ${dbh}&Prime;</div>` : ''}
       ${info ? `<div class="tree-stats">
         <span class="tree-stat-count">${info.c.toLocaleString()} in Philadelphia</span>
         <span class="tree-stat-rank">#${info.r} of ${totalSpecies} species</span>
@@ -627,7 +627,7 @@ let map, dotLayer, searchCircle;
       div.innerHTML = `
         <div class="tree-common"><span class="tree-dot"></span>${common}</div>
         ${scientific ? `<div class="tree-scientific">${scientific}</div>` : ''}
-        ${dbh ? `<div class="tree-dbh">DBH: ${dbh}&Prime;</div>` : ''}
+        ${dbh ? `<div class="tree-dbh">Diameter: ${dbh}&Prime;</div>` : ''}
         ${info ? `<div class="tree-stats">
           <span class="tree-stat-count">${info.c.toLocaleString()} in Philadelphia</span>
           <span class="tree-stat-rank">#${info.r} of ${totalSpecies} species</span>
