@@ -40,6 +40,55 @@
     font-family: 'Courier New', monospace;
   }
 
+  #search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #E0F7FA;
+    border-bottom: 1px solid #9ed8e0;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  #address-input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #9ed8e0;
+    border-radius: 3px;
+    background: #fff;
+    color: #1a3a2a;
+    outline: none;
+  }
+  #address-input:focus {
+    border-color: #2a9a60;
+  }
+  #address-input::placeholder {
+    color: #9ed8e0;
+  }
+  #search-btn {
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-family: 'Courier New', monospace;
+    background: #2a9a60;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+  #search-btn:hover { background: #1a6b4a; }
+  #search-btn:disabled { background: #9ed8e0; cursor: default; }
+  #search-status {
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    color: #c0392b;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
   #map-container { flex: 1; position: relative; }
   #map { width: 100%; height: 100%; }
 
@@ -223,6 +272,12 @@
   <h1>Philadelphia Tree Inventory</h1>
   <span class="subtitle">PPR · 2025</span>
   <span id="tree-count">Loading&hellip;</span>
+</div>
+
+<div id="search-bar">
+  <input id="address-input" type="text" placeholder="Enter a Philadelphia address&hellip;" autocomplete="off" />
+  <button id="search-btn">Find tree</button>
+  <span id="search-status"></span>
 </div>
 
 <div id="map-container">
@@ -469,6 +524,104 @@ let map, dotLayer, searchCircle;
     const z = map.getZoom();
     const r = z >= 17 ? 5 : z >= 15 ? 4 : z >= 13 ? 3 : 2;
     for (const m of markers) m.setRadius(r);
+  });
+
+  // ── Address search ───────────────────────────────────────────────────────
+  let searchMarker = null;
+
+  async function searchAddress() {
+    const input = document.getElementById('address-input');
+    const btn = document.getElementById('search-btn');
+    const status = document.getElementById('search-status');
+    const query = input.value.trim();
+    if (!query) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Searching…';
+    status.textContent = '';
+
+    // Append Philadelphia if not already mentioned
+    const fullQuery = /philadelphia|philly|PA|19\d{3}/i.test(query)
+      ? query
+      : query + ', Philadelphia, PA';
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&limit=1&countrycodes=us`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data = await res.json();
+
+      if (!data.length) {
+        status.textContent = 'Address not found.';
+        btn.disabled = false;
+        btn.textContent = 'Find tree';
+        return;
+      }
+
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+
+      // Find nearest tree
+      const indices = findNearby(lat, lng, 0.01);
+      if (!indices.length) {
+        status.textContent = 'No trees found nearby.';
+        btn.disabled = false;
+        btn.textContent = 'Find tree';
+        return;
+      }
+
+      let closest = indices[0];
+      let minDist = Infinity;
+      for (const i of indices) {
+        const d = Math.hypot(treeData.lats[i] - lat, treeData.lngs[i] - lng);
+        if (d < minDist) { minDist = d; closest = i; }
+      }
+
+      // Fly to location
+      map.flyTo([treeData.lats[closest], treeData.lngs[closest]], 18, { duration: 1.2 });
+
+      // Drop a pin at the address
+      if (searchMarker) map.removeLayer(searchMarker);
+      searchMarker = L.circleMarker([lat, lng], {
+        radius: 7, color: '#c0392b', fillColor: '#e74c3c',
+        fillOpacity: 0.9, weight: 2
+      }).addTo(map).bindPopup('📍 ' + query).openPopup();
+
+      // Show tree in panel
+      const rawName = treeData.ns[treeData.ni[closest]];
+      const dbh = treeData.dbhs[closest];
+      const { common, scientific } = formatName(rawName);
+      const info = SPECIES_INFO[rawName] || null;
+      const totalSpecies = Object.keys(SPECIES_INFO).length;
+
+      panelCount.textContent = '';
+      panelList.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'tree-item';
+      div.innerHTML = `
+        <div class="tree-common"><span class="tree-dot"></span>${common}</div>
+        ${scientific ? `<div class="tree-scientific">${scientific}</div>` : ''}
+        ${dbh ? `<div class="tree-dbh">DBH: ${dbh}&Prime;</div>` : ''}
+        ${info ? `<div class="tree-stats">
+          <span class="tree-stat-count">${info.c.toLocaleString()} in Philadelphia</span>
+          <span class="tree-stat-rank">#${info.r} of ${totalSpecies} species</span>
+        </div>` : ''}
+      `;
+      panelList.appendChild(div);
+      panel.classList.add('visible');
+
+      if (searchCircle) { map.removeLayer(searchCircle); searchCircle = null; }
+
+    } catch (err) {
+      status.textContent = 'Search failed. Try again.';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Find tree';
+  }
+
+  document.getElementById('search-btn').addEventListener('click', searchAddress);
+  document.getElementById('address-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchAddress();
   });
 
 })();
